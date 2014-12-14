@@ -1,0 +1,32 @@
+name:                github-influx-bridge
+version:             0.0.1
+homepage:            https://github.com/wereHamster/github-influx-bridge
+license:             MIT
+license-file:        LICENSE
+author:              Tomas Carnecky
+maintainer:          tomas.carnecky@gmail.com
+build-type:          Simple
+cabal-version:       >= 1.10
+
+
+executable github-influx-bridge
+    default-language:    Haskell2010
+    ghc-options:         -Wall -threaded
+
+    main-is:             Main.hs
+
+    build-depends:       aeson
+    build-depends:       base          >= 4.0 && < 5
+    build-depends:       connection
+    build-depends:       github-types  == 0.1.0.5
+    build-depends:       http-client
+    build-depends:       http-client-tls
+    build-depends:       http-types
+    build-depends:       influxdb
+    build-depends:       network-uri
+    build-depends:       safe
+    build-depends:       snap-core
+    build-depends:       snap-server
+    build-depends:       text
+    build-depends:       transformers  >= 0.4
+    build-depends:       vector
