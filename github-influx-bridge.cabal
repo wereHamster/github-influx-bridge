@@ -17,6 +17,7 @@ executable github-influx-bridge
 
     build-depends:       aeson
     build-depends:       base          >= 4.0 && < 5
+    build-depends:       bytestring
     build-depends:       connection
     build-depends:       github-types  == 0.1.0.5
     build-depends:       http-client

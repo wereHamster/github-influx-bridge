@@ -17,6 +17,9 @@ import           Data.Text.Encoding
 
 import qualified Data.Vector as V
 
+import           Data.Maybe
+import qualified Data.ByteString.Char8 as BC8
+
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.IO.Class
@@ -69,12 +72,13 @@ influxConfig httpManager = runMaybeT $ do
 
 main :: IO ()
 main = do
+    hookPath <- fromMaybe "webhook" <$> lookupEnv "HOOKPATH"
     withManager managerSettings $ \manager -> do
         mbConfig <- influxConfig manager
         case mbConfig of
             Nothing -> return ()
             Just cfg -> quickHttpServe $
-                path "webhook" (method POST $ hook cfg) <|> writeText "ok\n"
+                path (BC8.pack hookPath) (method POST $ hook cfg) <|> writeText "ok\n"
 
 
 hook :: Config -> Snap ()
