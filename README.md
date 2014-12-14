@@ -11,6 +11,8 @@ guideliens][12factor-config] in the environment.
 
  - **INFLUXDB**: The URL to the Influx database. The path component of the URL
    specifies the database. Example: `http://root:root@influx.example.com:8086/dbname`.
+   Minimal complete definition MUST include username, password, hostname and
+   dbname.
 
  - **HOOKPATH**: The path where the hook accepts events. This is optional,
    when not specified then this default is used: `webhook`.
