@@ -12,6 +12,7 @@ import           Snap.Http.Server hiding (Config)
 import           Data.Aeson (decode)
 import           Data.Aeson.Types (parseMaybe)
 
+import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Text.Encoding
 
@@ -44,7 +45,7 @@ managerSettings = mkManagerSettings
     (TLSSettingsSimple True True True) Nothing
 
 
-influxConfig :: Manager -> IO (Maybe Config)
+influxConfig :: Manager -> IO (Maybe (Config, Text))
 influxConfig httpManager = runMaybeT $ do
     uri <- MaybeT $ lookupEnv "INFLUXDB"
     URI{..} <- MaybeT $ return $ parseURI uri
@@ -53,20 +54,25 @@ influxConfig httpManager = runMaybeT $ do
         [a,b] -> return $ Just (a,b)
         _     -> return Nothing
 
+    port <- MaybeT $ return $ Just $ case uriPort of
+        (':':x) -> fromMaybe 8086 $ readMay x
+        _ -> 8086
 
-    port <- MaybeT $ return $ readMay (tail uriPort)
     serverPool <- MaybeT $ Just <$> newServerPool
         (Server (T.pack uriRegName) port False)
         []
-
 
     config <- MaybeT $ return $ Just $ Config
         (Credentials username password)
         serverPool
         httpManager
 
+    -- Check to make sure the db is not an empty string.
+    db <- MaybeT $ return $ case tail uriPath of
+        [] -> Nothing
+        x  -> Just x
 
-    MaybeT $ return $ Just config
+    MaybeT $ return $ Just (config, T.pack db)
 
 
 
@@ -77,12 +83,12 @@ main = do
         mbConfig <- influxConfig manager
         case mbConfig of
             Nothing -> return ()
-            Just cfg -> quickHttpServe $
-                path (BC8.pack hookPath) (method POST $ hook cfg) <|> writeText "ok\n"
+            Just (cfg, db) -> quickHttpServe $
+                path (BC8.pack hookPath) (method POST $ hook cfg db) <|> writeText "ok\n"
 
 
-hook :: Config -> Snap ()
-hook config = do
+hook :: Config -> Text -> Snap ()
+hook config db = do
     mbEvent <- do
         hdrs <- headers <$> getRequest
         body <- readRequestBody (100 * 1000)
@@ -95,7 +101,7 @@ hook config = do
     case mbEvent of
         Nothing -> return ()
         Just ev -> do
-            void $ liftIO $ postWithPrecision config "rmx" SecondsPrecision $
+            void $ liftIO $ postWithPrecision config db SecondsPrecision $
                 withSeries "github.events" $ do
                     writePoints ev
             writeText "ok\n"
