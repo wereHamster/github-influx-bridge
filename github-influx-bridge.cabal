@@ -31,3 +31,4 @@ executable github-influx-bridge
     build-depends:       text
     build-depends:       transformers  >= 0.4
     build-depends:       vector
+    build-depends:       cryptohash
