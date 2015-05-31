@@ -86,8 +86,7 @@ main = do
         case mbConfig of
             Nothing -> return ()
             Just (cfg, db) -> quickHttpServe $
-                webhookHandler (BC8.pack hookPath) mbSecretKey (handleEvent cfg db)
-                -- path (BC8.pack hookPath) (method POST $ hook mbSecretKey cfg db) <|> writeText "ok\n"
+                webhookHandler (BC8.pack hookPath) mbSecretKey (handleEvent cfg db) <|> writeText "ok\n"
 
 handleEvent :: Config -> Text -> Either Error Event -> Snap ()
 handleEvent config db res = case res of
