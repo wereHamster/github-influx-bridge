@@ -9,20 +9,12 @@ import           Safe
 import           Snap.Core
 import           Snap.Http.Server hiding (Config)
 
-import           Crypto.Hash
-
-import           Data.Aeson (decode)
-import           Data.Aeson.Types (parseMaybe)
-
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Text.Encoding
-import           Data.Monoid
 
 import qualified Data.Vector as V
 
 import           Data.Maybe
-import qualified Data.ByteString.Lazy  as LBS
 import qualified Data.ByteString.Char8 as BC8
 
 import           Control.Applicative
@@ -40,6 +32,10 @@ import           System.Environment
 import           Database.InfluxDB
 
 import           GitHub.Types
+import           GitHub.WebHook.Handler
+import           GitHub.WebHook.Handler.Snap
+
+import           Prelude
 
 
 
@@ -90,63 +86,19 @@ main = do
         case mbConfig of
             Nothing -> return ()
             Just (cfg, db) -> quickHttpServe $
-                path (BC8.pack hookPath) (method POST $ hook mbSecretKey cfg db) <|> writeText "ok\n"
+                webhookHandler (BC8.pack hookPath) mbSecretKey (handleEvent cfg db)
+                -- path (BC8.pack hookPath) (method POST $ hook mbSecretKey cfg db) <|> writeText "ok\n"
 
+handleEvent :: Config -> Text -> Either Error Event -> Snap ()
+handleEvent config db res = case res of
+    Left _ -> do
+        writeText "not ok\n"
 
-hook :: Maybe String -> Config -> Text -> Snap ()
-hook mbSecretKey config db = do
-    mbEvent <- do
-        hdrs <- headers <$> getRequest
-        body <- do
-            body <- readRequestBody (100 * 1000)
-            case (mbSecretKey, getHeader "X-Hub-Signature" hdrs) of
-
-                -- No secret key and no signature. Pass along the body unverified.
-                (Nothing, Nothing) -> return body
-
-                -- Signature is available but no secret key to verify it. Log this
-                -- and accept the body.
-                (Nothing, Just _) -> do
-                    liftIO $ putStrLn $
-                        "Ignoring signature because the secret token was not provided"
-                    return body
-
-                -- Secret token is available but the request is not signed. Reject
-                -- the request.
-                (Just _, Nothing) -> do
-                    writeText "Signature missing"
-                    res <- getResponse
-                    finishWith $ setResponseCode 400 res
-
-                -- Both the signature and secret token are available. Verify the
-                -- signature and reject the request if that fails.
-                (Just sc, Just sig) -> do
-                    let mac = hmac (BC8.pack sc) (LBS.toStrict body) :: HMAC SHA1
-                    if sig == ("sha1=" <> digestToHexByteString (hmacGetDigest mac))
-                        then return body
-                        else do
-                            liftIO $ do
-                                putStrLn "Signature does not match:"
-                                print $ show sig
-                                print $ digestToHexByteString $ hmacGetDigest mac
-
-                            writeText "Signature does not match"
-                            res <- getResponse
-                            finishWith $ setResponseCode 400 res
-
-        return $ do
-            eventName <- getHeader "X-GitHub-Event" hdrs
-            value     <- decode body
-            parseMaybe (eventParser $ decodeUtf8 eventName) value
-
-    case mbEvent of
-        Nothing -> return ()
-        Just ev -> do
-            void $ liftIO $ postWithPrecision config db SecondsPrecision $
-                withSeries "github.events" $ do
-                    writePoints ev
-            writeText "ok\n"
-
+    Right ev -> do
+        void $ liftIO $ postWithPrecision config db SecondsPrecision $
+            withSeries "github.events" $ do
+                writePoints ev
+        writeText "ok\n"
 
 
 instance ToSeriesData Event where

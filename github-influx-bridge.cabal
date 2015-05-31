@@ -32,3 +32,5 @@ executable github-influx-bridge
     build-depends:       transformers  >= 0.4
     build-depends:       vector
     build-depends:       cryptohash
+    build-depends:       github-webhook-handler
+    build-depends:       github-webhook-handler-snap
