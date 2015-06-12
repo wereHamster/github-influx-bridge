@@ -17,6 +17,11 @@ guideliens][12factor-config] in the environment.
  - **HOOKPATH**: The path where the hook accepts events. This is optional,
    when not specified then this default is used: `webhook`.
 
+ - **SECRET_TOKEN**: The secret token which is used to verify the payload.
+   Consult the [GitHub documentation][securing-webhooks] how to configure
+   the secret token on GitHub.
+
+
 
 Example:
 
@@ -30,5 +35,6 @@ safely send all events to this hook (select the *Send me everything.* option).
 
 
 [webhook]: https://developer.github.com/webhooks/
+[securing-webhooks]: https://developer.github.com/webhooks/securing/
 [influx]: http://influxdb.com/
 [12factor-config]: http://12factor.net/config
